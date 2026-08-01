@@ -1,0 +1,2 @@
+# trade-assistant
+Trading assistant.
