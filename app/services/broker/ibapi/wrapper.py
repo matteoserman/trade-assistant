@@ -1,9 +1,11 @@
 from threading import Event
+from datetime import datetime
 
 from ibapi.wrapper import EWrapper
 
 from app.domain.account import AccountSummary
 from app.domain.position import Position
+from app.domain.bar import Bar
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -12,9 +14,7 @@ logger = get_logger(__name__)
 class IBApiWrapper(EWrapper):
     """
     Receives callbacks from Interactive Brokers.
-
-    This class never contains business logic.
-    It only stores translated domain objects.
+    Translates IBKR callbacks into domain objects.
     """
 
     def __init__(self):
@@ -38,6 +38,18 @@ class IBApiWrapper(EWrapper):
         self.positions_event = Event()
         self.positions = []
 
+        #
+        # Historical Data
+        #
+        self.historical_data_event = Event()
+        self.historical_data = []
+
+    #
+    # ----------------------------------------------------
+    # Connection
+    # ----------------------------------------------------
+    #
+
     def nextValidId(self, orderId: int):
 
         self.next_order_id = orderId
@@ -50,19 +62,12 @@ class IBApiWrapper(EWrapper):
         self.connected_event.set()
 
     #
-    # ----------------------------
+    # ----------------------------------------------------
     # Account Summary
-    # ----------------------------
+    # ----------------------------------------------------
     #
 
-    def accountSummary(
-        self,
-        reqId,
-        account,
-        tag,
-        value,
-        currency,
-    ):
+    def accountSummary(self, reqId, account, tag, value, currency):
 
         self.account.account_id = account
         self.account.currency = currency
@@ -93,18 +98,12 @@ class IBApiWrapper(EWrapper):
         self.account_summary_event.set()
 
     #
-    # ----------------------------
+    # ----------------------------------------------------
     # Positions
-    # ----------------------------
+    # ----------------------------------------------------
     #
 
-    def position(
-        self,
-        account,
-        contract,
-        position,
-        avgCost,
-    ):
+    def position(self, account, contract, position, avgCost):
 
         self.positions.append(
             Position(
@@ -126,9 +125,37 @@ class IBApiWrapper(EWrapper):
         self.positions_event.set()
 
     #
-    # ----------------------------
+    # ----------------------------------------------------
+    # Historical Data
+    # ----------------------------------------------------
+    #
+
+    def historicalData(self, reqId, bar):
+
+        self.historical_data.append(
+            Bar(
+                timestamp=datetime.strptime(bar.date, "%Y%m%d"),
+                open=bar.open,
+                high=bar.high,
+                low=bar.low,
+                close=bar.close,
+                volume=float(bar.volume),
+            )
+        )
+
+    def historicalDataEnd(self, reqId, start, end):
+
+        logger.info(
+            "Received %s historical bars.",
+            len(self.historical_data),
+        )
+
+        self.historical_data_event.set()
+
+    #
+    # ----------------------------------------------------
     # Errors
-    # ----------------------------
+    # ----------------------------------------------------
     #
 
     def error(

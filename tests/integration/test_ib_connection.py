@@ -1,7 +1,7 @@
 from app.services.broker.ibapi.broker import IBApiBroker
 
 
-def test_ib_account_and_positions():
+def test_ib_broker():
 
     broker = IBApiBroker()
 
@@ -10,18 +10,18 @@ def test_ib_account_and_positions():
     account = broker.get_account_summary()
 
     assert account is not None
-    assert account.account_id != ""
+
+    bars = broker.get_historical_data(
+        symbol="AAPL",
+        duration="1 Y",
+        bar_size="1 day",
+    )
+
+    assert len(bars) > 200
 
     print()
-    print(account)
-
-    positions = broker.get_positions()
-
-    print()
-    print("POSITIONS")
-    print("------------------------")
-
-    for position in positions:
-        print(position)
+    print(bars[0])
+    print("...")
+    print(bars[-1])
 
     broker.disconnect()

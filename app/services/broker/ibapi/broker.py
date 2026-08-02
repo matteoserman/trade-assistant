@@ -1,5 +1,8 @@
 import threading
 
+from ibapi.contract import Contract
+from app.services.broker.ibapi.contracts import ContractFactory
+
 from app.services.broker.interface import BrokerInterface
 from app.services.broker.ibapi.client import IBApiClient
 from app.services.broker.ibapi.wrapper import IBApiWrapper
@@ -19,6 +22,12 @@ class IBApiBroker(BrokerInterface):
         self.client = IBApiClient(self.wrapper)
 
         self._thread = None
+        self._request_id = 1
+
+    def _next_request_id(self) -> int:
+        request_id = self._request_id
+        self._request_id += 1
+        return request_id
 
     def connect(self) -> bool:
 
@@ -60,17 +69,19 @@ class IBApiBroker(BrokerInterface):
 
         logger.info("Requesting account summary...")
 
+        request_id = self._next_request_id()
+
         self.wrapper.account_summary_event.clear()
 
         self.client.reqAccountSummary(
-            1,
+            request_id,
             "All",
             "NetLiquidation,BuyingPower,TotalCashValue",
         )
 
         received = self.wrapper.account_summary_event.wait(timeout=5)
 
-        self.client.cancelAccountSummary(1)
+        self.client.cancelAccountSummary(request_id)
 
         if not received:
             logger.error("Timed out waiting for account summary.")
@@ -103,3 +114,45 @@ class IBApiBroker(BrokerInterface):
         )
 
         return self.wrapper.positions
+
+    def get_historical_data(
+        self,
+        symbol: str,
+        duration: str,
+        bar_size: str,
+    ):
+
+        logger.info("Requesting historical data for %s...", symbol)
+
+        request_id = self._next_request_id()
+
+        self.wrapper.historical_data.clear()
+        self.wrapper.historical_data_event.clear()
+
+        contract = ContractFactory.stock(symbol)
+
+        self.client.reqHistoricalData(
+            request_id,
+            contract,
+            "",
+            duration,
+            bar_size,
+            "TRADES",
+            1,
+            1,
+            False,
+            [],
+        )
+
+        received = self.wrapper.historical_data_event.wait(timeout=15)
+
+        if not received:
+            logger.error("Timed out waiting for historical data.")
+            return []
+
+        logger.info(
+            "Retrieved %s bars.",
+            len(self.wrapper.historical_data),
+        )
+
+        return self.wrapper.historical_data

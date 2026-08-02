@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from app.domain.bar import Bar
+
 
 class BrokerInterface(ABC):
     """
@@ -25,4 +27,16 @@ class BrokerInterface(ABC):
 
     @abstractmethod
     def get_positions(self) -> Any:
+        pass
+
+    @abstractmethod
+    def get_historical_data(
+        self,
+        symbol: str,
+        duration: str,
+        bar_size: str,
+    ) -> list[Bar]:
+        """
+        Returns historical OHLCV bars.
+        """
         pass
