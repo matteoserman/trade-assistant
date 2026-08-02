@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
 # Trade Assistant
 
 Personal AI-assisted trading platform for Interactive Brokers.
